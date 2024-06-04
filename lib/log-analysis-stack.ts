@@ -12,7 +12,8 @@ export class LogAnalysisStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps) {
     super(scope, id, props);
 
-    const s3LogsBucketName = this.node.tryGetContext('s3LogsBucketName');
+    const s3LogsBucketNameCloudTrail = this.node.tryGetContext('s3LogsBucketNameCloudTrail');
+    const s3LogsBucketNameAlb = this.node.tryGetContext('s3LogsBucketNameAlb');
 
     // 共通
     // Athenaクエリ結果格納バケット
@@ -80,7 +81,7 @@ export class LogAnalysisStack extends Stack {
         description: `CloudTrail table for S3 bucket`,
         storageDescriptor: {
           columns: cloudTrailTableColumns,
-          location: `s3://${s3LogsBucketName}/AWSLogs/`,
+          location: `s3://${s3LogsBucketNameCloudTrail}/AWSLogs/`,
           inputFormat: 'com.amazon.emr.cloudtrail.CloudTrailInputFormat',
           outputFormat: 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat',
           serdeInfo: {
@@ -103,7 +104,7 @@ export class LogAnalysisStack extends Stack {
           'projection.region.type': 'enum',
           'projection.region.values': 'us-east-1,us-east-2,us-west-1,us-west-2,af-south-1,ap-east-1,ap-south-1,ap-northeast-2,ap-southeast-1,ap-southeast-2,ap-northeast-1,ca-central-1,eu-central-1,eu-west-1,eu-west-2,eu-south-1,eu-west-3,eu-north-1,me-south-1,sa-east-1',
           'projection.accountid.type': 'injected',
-          'storage.location.template': `s3://${s3LogsBucketName}/AWSLogs/\${accountid}/CloudTrail/\${region}/\${date}`,
+          'storage.location.template': `s3://${s3LogsBucketNameCloudTrail}/AWSLogs/\${accountid}/CloudTrail/\${region}/\${date}`,
           'classification': 'cloudtrail',
           'compressionType': 'gzip',
           'typeOfData': 'file',
@@ -134,36 +135,58 @@ export class LogAnalysisStack extends Stack {
 
     // テーブルスキーマ ALB用
     const albTableColumns = [
+      { name: 'type', type: 'string' },
       { name: 'time', type: 'string' },
+      { name: 'elb', type: 'string' },
       { name: 'client_ip', type: 'string' },
       { name: 'client_port', type: 'int' },
-      { name: 'listener_port', type: 'int' },
-      { name: 'tls_protocol', type: 'string' },
-      { name: 'tls_cipher', type: 'string' },
-      { name: 'tls_handshake_latency', type: 'double' },
-      { name: 'leaf_client_cert_subject', type: 'string' },
-      { name: 'leaf_client_cert_validity', type: 'string' },
-      { name: 'leaf_client_cert_serial_number', type: 'string' },
-      { name: 'tls_verify_status', type: 'string' },
+      { name: 'target_ip', type: 'string' },
+      { name: 'target_port', type: 'int' },
+      { name: 'request_processing_time', type: 'double' },
+      { name: 'target_processing_time', type: 'double' },
+      { name: 'response_processing_time', type: 'double' },
+      { name: 'elb_status_code', type: 'int' },
+      { name: 'target_status_code', type: 'string' },
+      { name: 'received_bytes', type: 'bigint' },
+      { name: 'sent_bytes', type: 'bigint' },
+      { name: 'request_verb', type: 'string' },
+      { name: 'request_url', type: 'string' },
+      { name: 'request_proto', type: 'string' },
+      { name: 'user_agent', type: 'string' },
+      { name: 'ssl_cipher', type: 'string' },
+      { name: 'ssl_protocol', type: 'string' },
+      { name: 'target_group_arn', type: 'string' },
+      { name: 'trace_id', type: 'string' },
+      { name: 'domain_name', type: 'string' },
+      { name: 'chosen_cert_arn', type: 'string' },
+      { name: 'matched_rule_priority', type: 'string' },
+      { name: 'request_creation_time', type: 'string' },
+      { name: 'actions_executed', type: 'string' },
+      { name: 'redirect_url', type: 'string' },
+      { name: 'lambda_error_reason', type: 'string' },
+      { name: 'target_port_list', type: 'string' },
+      { name: 'target_status_code_list', type: 'string' },
+      { name: 'classification', type: 'string' },
+      { name: 'classification_reason', type: 'string' },
     ];
 
-    // // データカタログテーブル Alb用
+    // データカタログテーブル Alb用
     const albTable = new aws_glue.CfnTable(this, 'albTable', {
       catalogId: this.account,
       databaseName: dataCatalogAlb.ref,
       tableInput: {
-        name: 'alb_connection_logs',
+        name: 'alb_table',
         description: `Alb table for S3 bucket`,
         storageDescriptor: {
           columns: albTableColumns,
-          location: `s3://${s3LogsBucketName}/AWSLogs/`,
+          location: `s3://${s3LogsBucketNameAlb}/AWSLogs/`,
           inputFormat: 'org.apache.hadoop.hive.ql.io.HiveInputFormat',
           outputFormat: 'org.apache.hadoop.hive.ql.io.HiveOutputFormat',
           serdeInfo: {
             serializationLibrary: 'org.apache.hadoop.hive.serde2.RegexSerDe',
             parameters: {
               'serialization.format': '1',
-              'input.regex': '([^ ]*) ([^ ]*) ([0-9]*) ([0-9]*) ([A-Za-z0-9.-]*) ([^ ]*) ([-.0-9]*) \\"([^\\"]*)\\" ([^ ]*) ([^ ]*) ([^ ]*)',
+              'input.regex': '([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*):([0-9]*) ([^ ]*)[:-]([0-9]*) ([-.0-9]*) ([-.0-9]*) ([-.0-9]*) (|[-0-9]*) (-|[-0-9]*) ([-0-9]*) ([-0-9]*) \"([^ ]*) (.*) (- |[^ ]*)\" \"([^\"]*)\" ([A-Z0-9-_]+) ([A-Za-z0-9.-]*) ([^ ]*) \"([^\"]*)\" \"([^\"]*)\" \"([^\"]*)\" ([-.0-9]*) ([^ ]*) \"([^\"]*)\" \"([^\"]*)\" \"([^ ]*)\" \"([^\s]+?)\" \"([^\s]+)\" \"([^ ]*)\" \"([^ ]*)\"',
             },
           },
         },
@@ -180,7 +203,7 @@ export class LogAnalysisStack extends Stack {
           'projection.date.interval': '1',
           'projection.date.interval.unit': 'DAYS',
           'projection.accountid.type': 'injected',
-          'storage.location.template': `s3://${s3LogsBucketName}/AWSLogs/\${accountid}/elasticloadbalancing/${this.region}/\${date}`,
+          'storage.location.template': `s3://${s3LogsBucketNameAlb}/AWSLogs/\${accountid}/elasticloadbalancing/${this.region}/\${date}`,
         },
       },
     });

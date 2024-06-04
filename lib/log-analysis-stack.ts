@@ -38,7 +38,14 @@ export class LogAnalysisStack extends Stack {
     const dataCatalogCloudTrail = new aws_glue.CfnDatabase(this, 'dataCatalogCloudTrail', {
       catalogId: this.account,
       databaseInput: {
-        createTableDefaultPermissions: [],
+        createTableDefaultPermissions: [
+          {
+            principal: {
+              dataLakePrincipalIdentifier: "IAM_ALLOWED_PRINCIPALS"
+            },
+            permissions: []
+          }
+        ],
         name: 'data_catalog_cloudtrail',
       },
     });
@@ -82,7 +89,7 @@ export class LogAnalysisStack extends Stack {
         storageDescriptor: {
           columns: cloudTrailTableColumns,
           location: `s3://${s3LogsBucketNameCloudTrail}/AWSLogs/`,
-          inputFormat: 'com.amazon.emr.cloudtrail.CloudTrailInputFormat',
+          inputFormat: 'org.apache.hadoop.mapred.TextInputFormat',
           outputFormat: 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat',
           serdeInfo: {
             serializationLibrary: 'org.apache.hive.hcatalog.data.JsonSerDe',
@@ -128,7 +135,14 @@ export class LogAnalysisStack extends Stack {
     const dataCatalogAlb = new aws_glue.CfnDatabase(this, 'dataCatalogAlb', {
       catalogId: this.account,
       databaseInput: {
-        createTableDefaultPermissions: [],
+        createTableDefaultPermissions: [
+          {
+            principal: {
+              dataLakePrincipalIdentifier: "IAM_ALLOWED_PRINCIPALS"
+            },
+            permissions: []
+          }
+        ],
         name: 'data_catalog_alb',
       },
     });

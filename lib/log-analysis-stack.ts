@@ -7,6 +7,8 @@ import {
   RemovalPolicy,
   aws_glue,
 } from 'aws-cdk-lib';
+import * as lakeformation from 'aws-cdk-lib/aws-lakeformation';
+import { principals } from './principals'; // インポート部分
 
 export class LogAnalysisStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps) {
@@ -119,8 +121,8 @@ export class LogAnalysisStack extends Stack {
       },
     });
 
-    // Alb
-    // Athenaワークグループ Alb用
+    // ALB
+    // Athenaワークグループ ALB用
     new aws_athena.CfnWorkGroup(this, 'athenaWorkGroupAlb', {
       name: 'athenaWorkGroupAlb',
       workGroupConfiguration: {
@@ -131,7 +133,7 @@ export class LogAnalysisStack extends Stack {
       recursiveDeleteOption: true,
     });
 
-    // データカタログ Alb用
+    // データカタログ ALB用
     const dataCatalogAlb = new aws_glue.CfnDatabase(this, 'dataCatalogAlb', {
       catalogId: this.account,
       databaseInput: {
@@ -184,7 +186,7 @@ export class LogAnalysisStack extends Stack {
       { name: 'classification_reason', type: 'string' },
     ];
 
-    // データカタログテーブル Alb用
+    // データカタログテーブル ALB用
     const albTable = new aws_glue.CfnTable(this, 'albTable', {
       catalogId: this.account,
       databaseName: dataCatalogAlb.ref,
@@ -220,6 +222,39 @@ export class LogAnalysisStack extends Stack {
           'storage.location.template': `s3://${s3LogsBucketNameAlb}/AWSLogs/\${accountid}/elasticloadbalancing/${this.region}/\${date}`,
         },
       },
+    });
+
+    // IAMプリンシパルに対する権限付与をループ処理で行う
+    principals.forEach((principal, index) => {
+      new lakeformation.CfnPermissions(this, `LakeFormationPermissionForCloudTrailTable${index}`, {
+        dataLakePrincipal: {
+          dataLakePrincipalIdentifier: `arn:aws:iam::${this.account}:${principal}`,
+        },
+        resource: {
+          tableResource: {
+            catalogId: this.account,
+            databaseName: dataCatalogCloudTrail.ref,
+            name: 'cloudtrail_table',
+          },
+        },
+        permissions: ['SELECT'],
+        permissionsWithGrantOption: [],
+      });
+
+      new lakeformation.CfnPermissions(this, `LakeFormationPermissionForAlbTable${index}`, {
+        dataLakePrincipal: {
+          dataLakePrincipalIdentifier: `arn:aws:iam::${this.account}:${principal}`,
+        },
+        resource: {
+          tableResource: {
+            catalogId: this.account,
+            databaseName: dataCatalogAlb.ref,
+            name: 'alb_table',
+          },
+        },
+        permissions: ['SELECT'],
+        permissionsWithGrantOption: [],
+      });
     });
   }
 }

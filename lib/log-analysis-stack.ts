@@ -69,10 +69,10 @@ export class LogAnalysisStack extends Stack {
       { name: 'additionalEventData', type: 'string' },
       { name: 'requestId', type: 'string' },
       { name: 'eventId', type: 'string' },
-      { name: 'readOnly', type: 'string' },
       { name: 'resources', type: 'array<struct<arn:string,accountId:string,type:string>>' },
       { name: 'eventType', type: 'string' },
       { name: 'apiVersion', type: 'string' },
+      { name: 'readOnly', type: 'string' },
       { name: 'recipientAccountId', type: 'string' },
       { name: 'serviceEventDetails', type: 'string' },
       { name: 'sharedEventID', type: 'string' },
@@ -91,7 +91,7 @@ export class LogAnalysisStack extends Stack {
         storageDescriptor: {
           columns: cloudTrailTableColumns,
           location: `s3://${s3LogsBucketNameCloudTrail}/AWSLogs/`,
-          inputFormat: 'org.apache.hadoop.mapred.TextInputFormat',
+          inputFormat: 'com.amazon.emr.cloudtrail.CloudTrailInputFormat',
           outputFormat: 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat',
           serdeInfo: {
             serializationLibrary: 'org.apache.hive.hcatalog.data.JsonSerDe',
@@ -196,13 +196,13 @@ export class LogAnalysisStack extends Stack {
         storageDescriptor: {
           columns: albTableColumns,
           location: `s3://${s3LogsBucketNameAlb}/AWSLogs/`,
-          inputFormat: 'org.apache.hadoop.hive.ql.io.HiveInputFormat',
-          outputFormat: 'org.apache.hadoop.hive.ql.io.HiveOutputFormat',
+          inputFormat: 'org.apache.hadoop.mapred.TextInputFormat',
+          outputFormat: 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat',
           serdeInfo: {
             serializationLibrary: 'org.apache.hadoop.hive.serde2.RegexSerDe',
             parameters: {
               'serialization.format': '1',
-              'input.regex': '([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*):([0-9]*) ([^ ]*)[:-]([0-9]*) ([-.0-9]*) ([-.0-9]*) ([-.0-9]*) (|[-0-9]*) (-|[-0-9]*) ([-0-9]*) ([-0-9]*) \"([^ ]*) (.*) (- |[^ ]*)\" \"([^\"]*)\" ([A-Z0-9-_]+) ([A-Za-z0-9.-]*) ([^ ]*) \"([^\"]*)\" \"([^\"]*)\" \"([^\"]*)\" ([-.0-9]*) ([^ ]*) \"([^\"]*)\" \"([^\"]*)\" \"([^ ]*)\" \"([^\s]+?)\" \"([^\s]+)\" \"([^ ]*)\" \"([^ ]*)\"',
+              'input.regex': '([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*):([0-9]*) ([^ ]*)[:-]([0-9]*) ([-.0-9]*) ([-.0-9]*) ([-.0-9]*) (|[-0-9]*) (-|[-0-9]*) ([-0-9]*) ([-0-9]*) \"([^ ]*) (.*) (- |[^ ]*)\" \"([^\"]*)\" ([A-Z0-9-_]+) ([A-Za-z0-9.-]*) ([^ ]*) \"([^\"]*)\" \"([^\"]*)\" \"([^\"]*)\" ([-.0-9]*) ([^ ]*) \"([^\"]*)\" \"([^\"]*)\" \"([^ ]*)\" \"([^\\s]+?)\" \"([^\\s]+)\" \"([^ ]*)\" \"([^ ]*)\"'
             },
           },
         },
@@ -224,7 +224,7 @@ export class LogAnalysisStack extends Stack {
       },
     });
 
-    // IAMプリンシパルに対する権限付与をループ処理で行う
+    // LakeFormationPermission
     principals.forEach((principal, index) => {
       new lakeformation.CfnPermissions(this, `LakeFormationPermissionForCloudTrailTable${index}`, {
         dataLakePrincipal: {

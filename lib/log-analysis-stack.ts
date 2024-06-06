@@ -8,7 +8,7 @@ import {
   aws_glue,
 } from 'aws-cdk-lib';
 import * as lakeformation from 'aws-cdk-lib/aws-lakeformation';
-import { principals } from './principals'; // インポート部分
+// import { principals } from './principals'; // インポート部分
 
 export class LogAnalysisStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps) {
@@ -121,6 +121,22 @@ export class LogAnalysisStack extends Stack {
       },
     });
 
+    // Lakeformation.Permissions CloudTrail11用
+    new lakeformation.CfnPermissions(this, 'LakeFormationPermissionCloudTrail', {
+      dataLakePrincipal: {
+        dataLakePrincipalIdentifier: "IAM_ALLOWED_PRINCIPALS",
+      },
+      resource: {
+        tableResource: {
+          catalogId: this.account,
+          databaseName: dataCatalogCloudTrail.ref,
+          name: 'cloudtrail_table',
+        },
+      },
+      permissions: ['SELECT', 'ALL', 'ALTER', 'DELETE', 'DESCRIBE', 'DROP', 'INSERT'],
+      permissionsWithGrantOption: [],
+    });
+
     // ALB
     // Athenaワークグループ ALB用
     new aws_athena.CfnWorkGroup(this, 'athenaWorkGroupAlb', {
@@ -225,37 +241,21 @@ export class LogAnalysisStack extends Stack {
       },
     });
 
-    // LakeFormationPermission
-    principals.forEach((principal, index) => {
-      new lakeformation.CfnPermissions(this, `LakeFormationPermissionForCloudTrailTable${index}`, {
-        dataLakePrincipal: {
-          dataLakePrincipalIdentifier: `arn:aws:iam::${this.account}:${principal}`,
+    // Lakeformation.Permissions Alb用    
+    new lakeformation.CfnPermissions(this, 'LakeFormationPermissionAlb', {
+      dataLakePrincipal: {
+        dataLakePrincipalIdentifier: "IAM_ALLOWED_PRINCIPALS",
+      },
+      resource: {
+        tableResource: {
+          catalogId: this.account,
+          databaseName: dataCatalogAlb.ref,
+          name: 'alb_table',
         },
-        resource: {
-          tableResource: {
-            catalogId: this.account,
-            databaseName: dataCatalogCloudTrail.ref,
-            name: 'cloudtrail_table',
-          },
-        },
-        permissions: ['SELECT'],
-        permissionsWithGrantOption: [],
-      });
+      },
+      permissions: ['SELECT', 'ALL', 'ALTER', 'DELETE', 'DESCRIBE', 'DROP', 'INSERT'],
+      permissionsWithGrantOption: [],
+    }); 
 
-      new lakeformation.CfnPermissions(this, `LakeFormationPermissionForAlbTable${index}`, {
-        dataLakePrincipal: {
-          dataLakePrincipalIdentifier: `arn:aws:iam::${this.account}:${principal}`,
-        },
-        resource: {
-          tableResource: {
-            catalogId: this.account,
-            databaseName: dataCatalogAlb.ref,
-            name: 'alb_table',
-          },
-        },
-        permissions: ['SELECT'],
-        permissionsWithGrantOption: [],
-      });
-    });
   }
 }

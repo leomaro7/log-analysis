@@ -78,3 +78,29 @@ GROUP BY date_add(
 ORDER BY log_hour_jst,
 	elb;
 
+
+
+
+SELECT from_iso8601_timestamp(eventtime) AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo' AS eventtime_jst,
+	useridentity,
+	sourceipaddress,
+	eventsource,
+	eventname,
+	requestparameters,
+	responseelements,
+	readonly
+FROM data_catalog_cloudtrail.cloudtrail_table
+WHERE readonly = 'false'
+	AND from_iso8601_timestamp(eventtime) BETWEEN date_add(
+		'hour',
+		-9,
+		from_iso8601_timestamp('2024-06-06T20:00:00Z')
+	) AND date_add(
+		'hour',
+		-9,
+		from_iso8601_timestamp('2024-06-06T20:59:59Z')
+	)
+	AND date BETWEEN '2024/06/01' AND '2024/06/06'
+	AND region IN ('ap-northeast-1', 'us-east-1')
+	AND accountid = '268546037544'
+ORDER BY eventtime DESC;

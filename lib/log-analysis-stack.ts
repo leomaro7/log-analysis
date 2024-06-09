@@ -6,8 +6,9 @@ import {
   StackProps,
   RemovalPolicy,
   aws_glue,
+  // aws_lakeformation,
 } from 'aws-cdk-lib';
-import * as lakeformation from 'aws-cdk-lib/aws-lakeformation';
+// import * as lakeformation from 'aws-cdk-lib/aws-lakeformation';
 // import { principals } from './principals'; // インポート部分
 
 export class LogAnalysisStack extends Stack {
@@ -40,14 +41,6 @@ export class LogAnalysisStack extends Stack {
     const dataCatalogCloudTrail = new aws_glue.CfnDatabase(this, 'dataCatalogCloudTrail', {
       catalogId: this.account,
       databaseInput: {
-        createTableDefaultPermissions: [
-          {
-            principal: {
-              dataLakePrincipalIdentifier: "IAM_ALLOWED_PRINCIPALS"
-            },
-            permissions: []
-          }
-        ],
         name: 'data_catalog_cloudtrail',
       },
     });
@@ -121,22 +114,6 @@ export class LogAnalysisStack extends Stack {
       },
     });
 
-    // Lakeformation.Permissions CloudTrail11用
-    new lakeformation.CfnPermissions(this, 'LakeFormationPermissionCloudTrail', {
-      dataLakePrincipal: {
-        dataLakePrincipalIdentifier: "IAM_ALLOWED_PRINCIPALS",
-      },
-      resource: {
-        tableResource: {
-          catalogId: this.account,
-          databaseName: dataCatalogCloudTrail.ref,
-          name: 'cloudtrail_table',
-        },
-      },
-      permissions: ['SELECT', 'ALL', 'ALTER', 'DELETE', 'DESCRIBE', 'DROP', 'INSERT'],
-      permissionsWithGrantOption: [],
-    });
-
     // ALB
     // Athenaワークグループ ALB用
     new aws_athena.CfnWorkGroup(this, 'athenaWorkGroupAlb', {
@@ -153,14 +130,6 @@ export class LogAnalysisStack extends Stack {
     const dataCatalogAlb = new aws_glue.CfnDatabase(this, 'dataCatalogAlb', {
       catalogId: this.account,
       databaseInput: {
-        createTableDefaultPermissions: [
-          {
-            principal: {
-              dataLakePrincipalIdentifier: "IAM_ALLOWED_PRINCIPALS"
-            },
-            permissions: []
-          }
-        ],
         name: 'data_catalog_alb',
       },
     });
@@ -240,22 +209,6 @@ export class LogAnalysisStack extends Stack {
         },
       },
     });
-
-    // Lakeformation.Permissions Alb用    
-    new lakeformation.CfnPermissions(this, 'LakeFormationPermissionAlb', {
-      dataLakePrincipal: {
-        dataLakePrincipalIdentifier: "IAM_ALLOWED_PRINCIPALS",
-      },
-      resource: {
-        tableResource: {
-          catalogId: this.account,
-          databaseName: dataCatalogAlb.ref,
-          name: 'alb_table',
-        },
-      },
-      permissions: ['SELECT', 'ALL', 'ALTER', 'DELETE', 'DESCRIBE', 'DROP', 'INSERT'],
-      permissionsWithGrantOption: [],
-    }); 
 
   }
 }
